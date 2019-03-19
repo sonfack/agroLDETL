@@ -51,7 +51,7 @@ def getAllAttributesOfADataset(server,dataset):
     print('\n')
     dumpData = output.split('{')[1]
     dumpData = dumpData.split('\n')
-    dumpdataset = [x.replace("'","").strip(',').strip('}').decode('utf-8') for x in dumpData]
+    dumpdataset = [x.replace("'","").strip(',').strip('}') for x in dumpData]
     return dumpdataset
 
 # exple of dataset : 'athaliana_eg_gene'
@@ -74,10 +74,30 @@ def getDatasetAttributValues(server, dataset, listOfAttributes=['ensembl_gene_id
             print(line)
 
 
+def getAllAttributesOfADatasetWithTheirPage(server, dataset):
+    dumpData = getAllAttributesOfADataset(server,dataset)
+    listOfSelectedPage = {}
+    listOfAttribute = []
+    for element in dumpData:
+        element = element.split('page:')
+        if len(element) >=2:
+            attribute = element[0].split(':')
+            attribute = attribute[0].strip()
+            element = element[1].split(',')
+            element = element[0].strip()
+            if element not in listOfSelectedPage:
+                listOfAttribute.append(element)
+                listOfSelectedPage[element] = [attribute]
+            else:
+                listOfSelectedPage[element].append(attribute)
+
+    return listOfSelectedPage, listOfAttribute
 
 def main():
     server = serverConnection(verbose=True)
     dataset='athaliana_eg_gene'
+    getAllAttributesOfADatasetWithTheirPage(server, dataset)
+    exit(0)
     #getAllAttributesOfADataset(server, dataset)
     getDatasetAttributValues(server, dataset,savageFile='test.txt')
     #print(getAllDatasets(server))
