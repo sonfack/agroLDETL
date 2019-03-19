@@ -1,6 +1,7 @@
 import os
 import sys
 import pprint
+import itertools
 from biomart import BiomartServer
 from lxml import etree
 import xml.etree.ElementTree as ET
@@ -69,11 +70,14 @@ def getDatasetAttributValues(server, dataset, listOfAttributes=['ensembl_gene_id
             f.write(line + os.linesep)
         f.close()
     else:
+        responseValues = []
         for line in response.iter_lines():
             line = line.decode('utf-8')
-            print(line)
-
-
+            responseValues.append(line)
+        return responseValues
+'''
+Returns a dictionary of pages and their attributes, also returns all the pages existing for the give dataset
+'''
 def getAllAttributesOfADatasetWithTheirPage(server, dataset):
     dumpData = getAllAttributesOfADataset(server,dataset)
     listOfSelectedPage = {}
@@ -93,10 +97,37 @@ def getAllAttributesOfADatasetWithTheirPage(server, dataset):
 
     return listOfSelectedPage, listOfAttribute
 
+def getAllValuesOfAllAttributesOfADataset(server, dataset, filter= ['ensembl_gene_id','external_gene_name','description','chromosome_name','start_position', 'end_position','gene_biotype','tair_locus_model','uniprotswissprot','uniprotsptrembl','po_id','po_namespace_1003']):
+    listOfSelectedPageAndAttributes, allAttributes = getAllAttributesOfADatasetWithTheirPage(server, dataset)
+    listOfUseAttributes = []
+    responseValues = []
+    if filter is None:
+        for page, listAttributes in listOfSelectedPageAndAttributes.items():
+            listOfUseAttributes = itertools.chain(listOfUseAttributes, listAttributes)
+            responseValues.append(getDatasetAttributValues(server, dataset, listOfAttributes=[listAttributes]))
+    else:
+        listOfUseAttributes = filter
+        for attribute in listOfUseAttributes:
+            print(attribute)
+            responseValues.append(getDatasetAttributValues(server, dataset, listOfAttributes=[attribute]))
+    return responseValues, filter
+
+
 def main():
     server = serverConnection(verbose=True)
     dataset='athaliana_eg_gene'
-    getAllAttributesOfADatasetWithTheirPage(server, dataset)
+    #getAllAttributesOfADatasetWithTheirPage(server, dataset)
+    print('\n\n')
+    resp, filt = getAllValuesOfAllAttributesOfADataset(server, dataset)
+
+
+    print('#############################################################################################################')
+    print(resp)
+    print('#############################################################################################################')
+    print(filt)
+    print('#############################################################################################################')
+
+
     exit(0)
     #getAllAttributesOfADataset(server, dataset)
     getDatasetAttributValues(server, dataset,savageFile='test.txt')
