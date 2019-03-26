@@ -2,6 +2,7 @@ import os
 import sys
 import pprint
 import itertools
+import pandas as pd
 from biomart import BiomartServer
 from lxml import etree
 import xml.etree.ElementTree as ET
@@ -75,6 +76,7 @@ def getDatasetAttributValues(server, dataset, listOfAttributes=['ensembl_gene_id
             line = line.decode('utf-8')
             responseValues.append(line)
         return responseValues
+
 '''
 Returns a dictionary of pages and their attributes, also returns all the pages existing for the give dataset
 '''
@@ -97,20 +99,66 @@ def getAllAttributesOfADatasetWithTheirPage(server, dataset):
 
     return listOfSelectedPage, listOfAttribute
 
-def getAllValuesOfAllAttributesOfADataset(server, dataset, filter= ['ensembl_gene_id','external_gene_name','description','chromosome_name','start_position', 'end_position','gene_biotype','tair_locus_model','uniprotswissprot','uniprotsptrembl','po_id','po_namespace_1003']):
+def chunks(list, n=10):
+    for i in range(0, len(list), n):
+        yield list[i:i+n]
+
+
+def getAllValuesOfAllAttributesOfADataset(server, dataset, numberOfChunks=10, filter= ['ensembl_gene_id','external_gene_name','description','chromosome_name','start_position', 'end_position','gene_biotype','tair_locus_model','uniprotswissprot','uniprotsptrembl','po_id','po_namespace_1003']):
     listOfSelectedPageAndAttributes, allAttributes = getAllAttributesOfADatasetWithTheirPage(server, dataset)
-    listOfUseAttributes = []
-    responseValues = []
-    if filter is None:
-        for page, listAttributes in listOfSelectedPageAndAttributes.items():
-            listOfUseAttributes = itertools.chain(listOfUseAttributes, listAttributes)
-            responseValues.append(getDatasetAttributValues(server, dataset, listOfAttributes=[listAttributes]))
-    else:
-        listOfUseAttributes = filter
-        for attribute in listOfUseAttributes:
-            print(attribute)
-            responseValues.append(getDatasetAttributValues(server, dataset, listOfAttributes=[attribute]))
+
+
+    for page, listAttributes in listOfSelectedPageAndAttributes.items():
+        listOfUseAttributes = []
+        responseValues = []
+        print('******************************************************')
+        print(page)
+        print('******************************************************')
+        print(listAttributes)
+        print('******************************************************')
+        if filter is not None:
+            filterInListAttributes = [attrib for attrib in filter if attrib in listAttributes]
+            chunkListOfAttributes = list(chunks(filterInListAttributes, numberOfChunks))
+            for chunkAttribute in chunkListOfAttributes:
+                listOfUseAttributes = itertools.chain(listOfUseAttributes, chunkAttribute)
+                responseValues.append(getDatasetAttributValues(server, dataset, listOfAttributes=chunkAttribute))
+            f = open(page, 'w+')
+            f.write('\t'.join(listOfUseAttributes))
+            f.write('\n')
+            if len(responseValues) > 0 :
+                for i in range(len(responseValues[0])):
+                    for j in range(len(responseValues)):
+                        f.write(responseValues[j][i])
+                        f.write('\t')
+                    f.write('\n')
+            f.close()
+        else:
+            chunkListOfAttributes = list(chunks(listAttributes, numberOfChunks))
+            for chunkAttribute in chunkListOfAttributes:
+                listOfUseAttributes = itertools.chain(listOfUseAttributes, chunkAttribute)
+                responseValues.append(getDatasetAttributValues(server, dataset, listOfAttributes=chunkAttribute))
+                print('******************************************************')
+                print(listOfUseAttributes)
+                print('******************************************************')
+                print(responseValues)
+                print('******************************************************')
+            exit(0)
+
     return responseValues, filter
+
+
+def createDataFrameFromFilterAndResponseValues(filter, responseValues, fileName='dataset'):
+    print(len(filter))
+    print(len(responseValues))
+    for i in range(len(responseValues)):
+        print(len(responseValues[i]))
+
+
+    #dicOfData = {attribute:listResponse for attribute, listResponse in zip(filter, responseValues)}
+    #print(dicOfData)
+    #df = pd.DataFrame(dicOfData)
+    #print(df)
+
 
 
 def main():
@@ -118,9 +166,9 @@ def main():
     dataset='athaliana_eg_gene'
     #getAllAttributesOfADatasetWithTheirPage(server, dataset)
     print('\n\n')
-    resp, filt = getAllValuesOfAllAttributesOfADataset(server, dataset)
-
-
+    resp, filt = getAllValuesOfAllAttributesOfADataset(server, dataset, filter=['ensembl_gene_id','external_gene_name','description','chromosome_name','start_position', 'end_position'])
+    createDataFrameFromFilterAndResponseValues(filt, resp, fileName='dataset')
+    exit(0)
     print('#############################################################################################################')
     print(resp)
     print('#############################################################################################################')
