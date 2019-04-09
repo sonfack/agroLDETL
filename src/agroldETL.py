@@ -9,7 +9,9 @@ import xml.etree.ElementTree as ET
 
 # redirect sys.stdout to a buffer
 import sys, io
+from datetime import datetime
 
+nowDate = datetime.now()
 pp = pprint.PrettyPrinter(indent=4)
 def serverConnection(proxy=None, verbose=True):
     server = BiomartServer("http://ensembl.gramene.org/biomart")
@@ -57,13 +59,17 @@ def getAllAttributesOfADataset(server,dataset):
     return dumpdataset
 
 # exple of dataset : 'athaliana_eg_gene'
-def getDatasetAttributValues(server, dataset, listOfAttributes=['ensembl_gene_id','external_gene_name','description'], folder='../data', savageFile=None):
+def getDatasetAttributValues(server, dataset, listOfAttributes=['ensembl_gene_id','external_gene_name','description'], folder='./data', savageFile= nowDate.strftime('%Y-%m-%d-%H-%M-%S-%f')):
+    if not os.path.exists(folder+'/'+dataset):
+        os.mkdir(folder+'/'+dataset)
+        print("Directory ", folder+'/'+dataset, " Created ")
+    else:
+        print("Directory ", folder+'/'+dataset, " already exists")
     datasetName = server.datasets[dataset]
     datasetName.show_attributes()
-    #exit(0)
     response = datasetName.search({'attributes': listOfAttributes})
     if savageFile is not None:
-        f = open(os.path.join(folder, savageFile), 'w+')
+        f = open(os.path.join(folder+'/'+dataset, savageFile), 'w+')
         f.write('==> '+ dataset + ' <==' + os.linesep)
         f.write('\t'.join(listOfAttributes) + os.linesep)
         for line in response.iter_lines():
@@ -104,13 +110,17 @@ def chunks(list, n=10):
         yield list[i:i+n]
 
 
-def getAllValuesOfAllAttributesOfADataset(server, dataset, numberOfChunks=10, filter= ['ensembl_gene_id','external_gene_name','description','chromosome_name','start_position', 'end_position','gene_biotype','tair_locus_model','uniprotswissprot','uniprotsptrembl','po_id','po_namespace_1003']):
+def getAllValuesOfAllAttributesOfADataset(server, dataset, filter, numberOfChunks=10, folder='./data'):
+    if not os.path.exists(folder+'/'+dataset):
+        os.mkdir(folder+'/'+dataset)
+        print("Directory ", folder+'/'+dataset, " Created ")
+    else:
+        print("Directory ", folder+'/'+dataset, " already exists")
     listOfSelectedPageAndAttributes, allAttributes = getAllAttributesOfADatasetWithTheirPage(server, dataset)
-
-
     for page, listAttributes in listOfSelectedPageAndAttributes.items():
         listOfUseAttributes = []
         responseValues = []
+        print(responseValues)
         print('******************************************************')
         print(page)
         print('******************************************************')
@@ -121,11 +131,14 @@ def getAllValuesOfAllAttributesOfADataset(server, dataset, numberOfChunks=10, fi
             chunkListOfAttributes = list(chunks(filterInListAttributes, numberOfChunks))
             for chunkAttribute in chunkListOfAttributes:
                 listOfUseAttributes = itertools.chain(listOfUseAttributes, chunkAttribute)
-                responseValues.append(getDatasetAttributValues(server, dataset, listOfAttributes=chunkAttribute))
-            f = open(page, 'w+')
+                resValue = getDatasetAttributValues(server, dataset, listOfAttributes=chunkAttribute)
+                if resValue is not None:
+                    responseValues.append(resValue)
+            f = open(os.path.join(folder+'/'+dataset, page), 'w')
             f.write('\t'.join(listOfUseAttributes))
             f.write('\n')
             if len(responseValues) > 0 :
+                print(responseValues)
                 for i in range(len(responseValues[0])):
                     for j in range(len(responseValues)):
                         f.write(responseValues[j][i])
@@ -142,7 +155,7 @@ def getAllValuesOfAllAttributesOfADataset(server, dataset, numberOfChunks=10, fi
                 print('******************************************************')
                 print(responseValues)
                 print('******************************************************')
-            exit(0)
+            #exit(0)
 
     return responseValues, filter
 
@@ -161,25 +174,18 @@ def createDataFrameFromFilterAndResponseValues(filter, responseValues, fileName=
 
 
 
-def main():
-    server = serverConnection(verbose=True)
-    dataset='athaliana_eg_gene'
+#def main():
+
+
+
     #getAllAttributesOfADatasetWithTheirPage(server, dataset)
-    print('\n\n')
-    resp, filt = getAllValuesOfAllAttributesOfADataset(server, dataset, filter=['ensembl_gene_id','external_gene_name','description','chromosome_name','start_position', 'end_position'])
-    createDataFrameFromFilterAndResponseValues(filt, resp, fileName='dataset')
-    exit(0)
-    print('#############################################################################################################')
-    print(resp)
-    print('#############################################################################################################')
-    print(filt)
-    print('#############################################################################################################')
 
 
-    exit(0)
+
+    #exit(0)
     #getAllAttributesOfADataset(server, dataset)
-    getDatasetAttributValues(server, dataset,savageFile='test.txt')
+    #getDatasetAttributValues(server, dataset,savageFile='test.txt')
     #print(getAllDatasets(server))
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()
